@@ -347,7 +347,543 @@ HTTP 200 OK
 ```
 
 ---
+---
 
+## 🏗️ Kiến trúc tổng quan
+
+```mermaid
+graph TB
+    subgraph Client["🌐 CLIENT LAYER"]
+  Browser["Browser<br/>(MVC Views)"]
+        JSApp["JavaScript App<br/>(External)"]
+    end
+
+    subgraph Presentation["🎨 PRESENTATION LAYER"]
+        Global["Global.asax.cs<br/>Application Entry"]
+        
+        subgraph Config["Configuration"]
+        WebApiConf["WebApiConfig<br/>• Routes<br/>• CORS<br/>• JSON Format"]
+   UnityConf["UnityConfig<br/>• DI Container<br/>• Register Services"]
+            MapProfile["MappingProfile<br/>• AutoMapper Config"]
+        end
+        
+     subgraph Middleware["Middleware"]
+        CorsHandler["CorsHandler<br/>• OPTIONS Preflight<br/>• CORS Headers"]
+        end
+        
+        subgraph Controllers["Controllers"]
+         MvcCtrl["TasksController<br/>(MVC)<br/>• Index()<br/>• Create()<br/>• Edit()<br/>• Delete()<br/><br/>Direct ADO.NET"]
+  ApiCtrl["TasksApiController<br/>(Web API)<br/>• GetTasks()<br/>• GetTask(id)<br/>• PostTask()<br/>• PutTask()<br/>• DeleteTask()<br/><br/>Uses UoW + DI"]
+        end
+    end
+
+    subgraph DTOLayer["📦 DTO LAYER"]
+ TaskDto["TaskDto<br/>• Id<br/>• Title<br/>• IsCompleted<br/>• CreatedAt<br/>• UpdatedAt"]
+        TaskCreateDto["TaskCreateDto<br/>• Title<br/>[Required, MinLength(3)]"]
+  TaskUpdateDto["TaskUpdateDto<br/>• Title<br/>• IsCompleted<br/>[Required]"]
+    end
+
+    subgraph Business["💼 BUSINESS LOGIC LAYER"]
+  subgraph UoWPattern["Unit of Work Pattern"]
+            UoW["UnitOfWork<br/>• SqlConnection<br/>• SqlTransaction<br/>• ITaskRepository Tasks<br/>• SaveChanges()<br/>• Dispose()"]
+        end
+        
+        subgraph RepoPattern["Repository Pattern"]
+ IRepo["ITaskRepository<br/>(Interface)"]
+          Repo["SqlTaskRepository<br/>• GetTasks()<br/>• GetTask(id)<br/>• PostTask()<br/>• PutTask()<br/>• DeleteTask()"]
+      end
+    end
+
+    subgraph Domain["🎯 DOMAIN LAYER"]
+        Model["TaskModel<br/>• Id<br/>• Title<br/>• IsCompleted<br/>• CreatedAt<br/>• UpdatedAt"]
+    end
+
+    subgraph Data["💾 DATA LAYER"]
+      DB[("SQL Server<br/>TodoListDB<br/><br/>Table: Tasks<br/>────────<br/>• Id (PK)<br/>• Title<br/>• IsCompleted<br/>• CreatedAt<br/>• UpdatedAt")]
+    end
+
+    subgraph CrossCutting["⚙️ CROSS-CUTTING CONCERNS"]
+        Unity["Unity Container<br/>• IUnitOfWork → UnitOfWork<br/>• IMapper → Mapper<br/><br/>Lifetime: Hierarchical"]
+        AutoMapper["AutoMapper<br/>• Model ↔ DTO<br/>• Auto Property Mapping"]
+    end
+
+    %% Client connections
+    Browser -->|HTTP| MvcCtrl
+    JSApp -->|HTTP + CORS| CorsHandler
+    
+    %% Entry point
+    Global --> Config
+    
+    %% Middleware flow
+    CorsHandler --> ApiCtrl
+ 
+    %% Controller to services
+    MvcCtrl -.Direct SQL.-> DB
+    ApiCtrl --> UoW
+    ApiCtrl --> AutoMapper
+    
+    %% DTO usage
+    ApiCtrl --> TaskDto
+    ApiCtrl --> TaskCreateDto
+    ApiCtrl --> TaskUpdateDto
+    
+    %% AutoMapper
+    AutoMapper --> Model
+    TaskDto -.Map.- Model
+    TaskCreateDto -.Map.- Model
+    TaskUpdateDto -.Map.- Model
+    
+    %% UoW pattern
+    UoW --> Repo
+    Repo -.Implements.- IRepo
+    
+ %% Data access
+    Repo -->|ADO.NET| DB
+    Repo --> Model
+    
+    %% DI
+    Unity -.Register.- UoW
+    Unity -.Register.- AutoMapper
+    UnityConf --> Unity
+    MapProfile --> AutoMapper
+    
+    %% Config
+ WebApiConf --> CorsHandler
+    
+    style Client fill:#e1f5ff
+  style Presentation fill:#fff9e6
+    style DTOLayer fill:#f3e5f5
+    style Business fill:#e8f5e9
+    style Domain fill:#fff3e0
+ style Data fill:#ffebee
+    style CrossCutting fill:#f1f8e9
+```
+
+---
+
+## 📊 Luồng dữ liệu chi tiết
+
+### 🔵 GET Tasks - Lấy danh sách
+
+```mermaid
+sequenceDiagram
+    participant C as Client<br/>(JavaScript)
+    participant CH as CorsHandler
+    participant AC as TasksApiController
+    participant UoW as UnitOfWork
+    participant Repo as SqlTaskRepository
+    participant DB as Database
+    participant AM as AutoMapper
+
+    C->>CH: HTTP GET /api/TasksApi
+ Note over CH: Check CORS<br/>Add Headers
+    CH->>AC: Forward Request
+    
+    AC->>UoW: Tasks.GetTasks()
+    Note over UoW: Active Transaction
+    
+    UoW->>Repo: GetTasks()
+    Repo->>DB: SELECT Id, Title, IsCompleted,<br/>CreatedAt, UpdatedAt<br/>FROM Tasks ORDER BY Id DESC
+    
+    DB-->>Repo: SqlDataReader
+    Note over Repo: Read rows<br/>Create TaskModel list
+    
+    Repo-->>UoW: List<TaskModel>
+    UoW-->>AC: List<TaskModel>
+    
+  AC->>AM: Map<IEnumerable<TaskDto>>(taskModels)
+    AM-->>AC: IEnumerable<TaskDto>
+    
+    AC-->>C: HTTP 200 OK<br/>JSON: TaskDto[]
+    
+    Note over C: Display tasks<br/>in UI
+```
+
+### 🟢 POST Task - Tạo task mới
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant CH as CorsHandler
+    participant AC as TasksApiController
+    participant AM as AutoMapper
+    participant UoW as UnitOfWork
+ participant Repo as SqlTaskRepository
+    participant DB as Database
+
+    C->>CH: HTTP OPTIONS /api/TasksApi
+    Note over CH: Preflight Request
+    CH-->>C: HTTP 200 OK<br/>CORS Headers
+
+    C->>CH: HTTP POST /api/TasksApi<br/>Body: {"Title": "New Task"}
+    CH->>AC: TaskCreateDto
+    
+    Note over AC: Validate<br/>ModelState
+    
+    AC->>AM: Map<TaskModel>(taskCreateDto)
+    AM-->>AC: TaskModel
+    
+    Note over AC: Set defaults:<br/>IsCompleted = false<br/>CreatedAt = Now<br/>UpdatedAt = Now
+    
+    AC->>UoW: Tasks.PostTask(taskModel)
+    UoW->>Repo: PostTask(taskModel)
+    
+    Repo->>DB: INSERT INTO Tasks<br/>(Title, IsCompleted)<br/>VALUES (@Title, @IsCompleted)<br/>SELECT SCOPE_IDENTITY();
+    
+    DB-->>Repo: New Id
+    Note over Repo: taskModel.Id = newId
+
+    Repo-->>UoW: TaskModel (with Id)
+    UoW-->>AC: TaskModel
+    
+    AC->>UoW: SaveChanges()
+    Note over UoW: Transaction.Commit()
+ UoW-->>AC: Success
+    
+    AC->>UoW: Tasks.GetTask(newId)
+    Note over UoW: Get full data from DB
+    UoW-->>AC: Complete TaskModel
+ 
+    AC->>AM: Map<TaskDto>(taskModel)
+    AM-->>AC: TaskDto
+    
+    AC-->>C: HTTP 201 Created<br/>Location: /api/TasksApi/{id}<br/>Body: TaskDto
+    
+    Note over C: Add task to UI<br/>Show success message
+```
+
+### 🟡 PUT Task - Cập nhật task
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant AC as TasksApiController
+    participant AM as AutoMapper
+    participant UoW as UnitOfWork
+    participant Repo as SqlTaskRepository
+    participant DB as Database
+
+    C->>AC: HTTP PUT /api/TasksApi/1<br/>Body: {"Title": "Updated",<br/>"IsCompleted": true}
+    
+    Note over AC: Validate<br/>ModelState
+    
+    AC->>UoW: Tasks.GetTask(1)
+    UoW->>Repo: GetTask(1)
+    Repo->>DB: SELECT * FROM Tasks<br/>WHERE Id = @Id
+    DB-->>Repo: TaskModel data
+    Repo-->>UoW: TaskModel
+    UoW-->>AC: taskModelFromDb
+    
+    alt Task not found
+        AC-->>C: HTTP 404 Not Found
+    else Task exists
+      AC->>AM: Map(taskUpdateDto, taskModelFromDb)
+        Note over AM: Update properties:<br/>Title, IsCompleted
+   AM-->>AC: Updated taskModelFromDb
+        
+        Note over AC: Set UpdatedAt = Now
+        
+        AC->>UoW: Tasks.PutTask(1, taskModel)
+        UoW->>Repo: PutTask(1, taskModel)
+   
+        Repo->>DB: UPDATE Tasks SET<br/>Title = @Title,<br/>IsCompleted = @IsCompleted,<br/>UpdatedAt = @UpdatedAt<br/>WHERE Id = @Id
+ 
+        DB-->>Repo: Rows affected
+        Repo-->>UoW: Success
+        UoW-->>AC: Success
+        
+   AC->>UoW: SaveChanges()
+      Note over UoW: Transaction.Commit()
+        UoW-->>AC: Success
+    
+        AC-->>C: HTTP 200 OK
+        
+    Note over C: Update UI<br/>Show success
+    end
+```
+
+### 🔴 DELETE Task - Xóa task
+
+```mermaid
+sequenceDiagram
+ participant C as Client
+participant AC as TasksApiController
+    participant UoW as UnitOfWork
+    participant Repo as SqlTaskRepository
+    participant DB as Database
+
+    C->>AC: HTTP DELETE /api/TasksApi/1
+    
+    AC->>UoW: Tasks.GetTask(1)
+    UoW->>Repo: GetTask(1)
+    Repo->>DB: SELECT * FROM Tasks<br/>WHERE Id = @Id
+    DB-->>Repo: TaskModel or null
+    Repo-->>UoW: TaskModel or null
+    UoW-->>AC: existingTask
+    
+    alt Task not found
+        AC-->>C: HTTP 404 Not Found
+    else Task exists
+        AC->>UoW: Tasks.DeleteTask(1)
+        UoW->>Repo: DeleteTask(1)
+        
+        Repo->>DB: DELETE FROM Tasks<br/>WHERE Id = @Id
+        
+        DB-->>Repo: Rows affected
+        Repo-->>UoW: Success
+        UoW-->>AC: Success
+        
+  AC->>UoW: SaveChanges()
+        Note over UoW: Transaction.Commit()
+   UoW-->>AC: Success
+        
+        AC-->>C: HTTP 200 OK
+  
+        Note over C: Remove from UI<br/>Show success
+    end
+```
+
+---
+
+## 🔄 Unit of Work Transaction Flow
+
+```mermaid
+stateDiagram-v2
+    [*] --> Created: new UnitOfWork()
+    
+    Created --> ConnectionOpen: Open SqlConnection
+    ConnectionOpen --> TransactionStarted: BeginTransaction()
+    TransactionStarted --> RepositoryCreated: Create SqlTaskRepository<br/>(pass connection & transaction)
+    
+    RepositoryCreated --> ReadyForOperations: Ready
+    
+ReadyForOperations --> ExecutingOperation: Execute CRUD<br/>(GetTasks, PostTask, etc.)
+    ExecutingOperation --> OperationComplete: Operation Done<br/>(No DB commit yet)
+    OperationComplete --> ReadyForOperations: Can do more operations
+    
+    OperationComplete --> Committing: SaveChanges() called
+    
+    Committing --> TryCommit: Try Transaction.Commit()
+    
+    TryCommit --> Committed: Success
+TryCommit --> RollingBack: Error/Exception
+    
+    RollingBack --> RolledBack: Transaction.Rollback()
+    RolledBack --> Error: Throw Exception
+    
+  Committed --> Disposing: Dispose Transaction
+    Disposing --> ConnectionClosed: Close Connection
+    ConnectionClosed --> [*]: Disposed
+    
+    Error --> [*]: Error State
+ 
+ note right of TransactionStarted
+        All operations within
+        same transaction
+    end note
+    
+    note right of Committing
+        ACID compliance:
+   - All or Nothing
+        - Consistent state
+    end note
+```
+
+---
+
+## 🎨 Design Patterns Visualization
+
+### Repository Pattern
+
+```mermaid
+classDiagram
+    class ITaskRepository {
+        <<interface>>
+        +GetTasks() IEnumerable~TaskModel~
+        +GetTask(id) TaskModel
+        +PostTask(task) TaskModel
+        +PutTask(id, task) void
+        +DeleteTask(id) void
+    }
+    
+    class SqlTaskRepository {
+        -SqlConnection _connection
+    -SqlTransaction _transaction
+        +SqlTaskRepository(connection, transaction)
+     +GetTasks() IEnumerable~TaskModel~
+     +GetTask(id) TaskModel
+        +PostTask(task) TaskModel
+        +PutTask(id, task) void
+   +DeleteTask(id) void
+        -CreateCommand() SqlCommand
+    }
+
+    class TaskModel {
+        +int Id
+        +string Title
+        +bool IsCompleted
+        +DateTime CreatedAt
+  +DateTime UpdatedAt
+    }
+  
+ class Database {
+        <<SQL Server>>
+        +Tasks Table
+    }
+    
+    ITaskRepository <|.. SqlTaskRepository : implements
+    SqlTaskRepository --> TaskModel : uses
+    SqlTaskRepository --> Database : queries via ADO.NET
+  
+    note for SqlTaskRepository "Encapsulates all\ndata access logic"
+```
+
+### Unit of Work Pattern
+
+```mermaid
+classDiagram
+    class IUnitOfWork {
+        <<interface>>
+        +ITaskRepository Tasks
+    +SaveChanges() int
+        +Dispose() void
+    }
+    
+    class UnitOfWork {
+        -SqlConnection _connection
+        -SqlTransaction _transaction
+    -bool _disposed
+ +ITaskRepository Tasks
+     +UnitOfWork()
+        +SaveChanges() int
+        +Dispose() void
+        #Dispose(disposing) void
+    }
+    
+    class ITaskRepository {
+  <<interface>>
+    }
+    
+    class SqlTaskRepository {
+        -SqlConnection _connection
+        -SqlTransaction _transaction
+    }
+    
+  IUnitOfWork <|.. UnitOfWork : implements
+    UnitOfWork --> ITaskRepository : exposes
+    UnitOfWork --> SqlTaskRepository : creates
+    UnitOfWork --> SqlConnection : manages
+    UnitOfWork --> SqlTransaction : manages
+    SqlTaskRepository --> SqlConnection : uses
+    SqlTaskRepository --> SqlTransaction : uses
+    
+    note for UnitOfWork "Coordinates repositories\nManages transactions\nEnsures consistency"
+```
+
+### Dependency Injection
+
+```mermaid
+graph TB
+    subgraph UnityContainer["Unity Container"]
+        Registrations["Registrations:<br/>• IUnitOfWork → UnitOfWork<br/>• IMapper → MapperInstance"]
+        Lifetime["Lifetime:<br/>HierarchicalLifetimeManager<br/>(Per HTTP Request)"]
+    end
+    
+    subgraph Runtime["Runtime Resolution"]
+        Request["HTTP Request"]
+        Controller["TasksApiController"]
+        Constructor["Constructor(IUnitOfWork, IMapper)"]
+    end
+    
+    subgraph Instances["Created Instances"]
+ UoW["UnitOfWork Instance<br/>• Connection<br/>• Transaction<br/>• Repository"]
+        Mapper["IMapper Instance<br/>• Configuration<br/>• Mappings"]
+    end
+ 
+    Registrations --> Constructor
+    Request --> Controller
+    Controller --> Constructor
+    Constructor --> UnityContainer
+    UnityContainer --> UoW
+    UnityContainer --> Mapper
+    
+    style UnityContainer fill:#e8f5e9
+    style Runtime fill:#fff3e0
+    style Instances fill:#e1f5ff
+```
+
+### DTO Pattern
+
+```mermaid
+graph LR
+    subgraph External["External Clients"]
+        Client["Client<br/>(Browser/App)"]
+    end
+    
+    subgraph DTOs["Data Transfer Objects"]
+      TaskDto["TaskDto<br/>(Read)"]
+    TaskCreateDto["TaskCreateDto<br/>(Create)"]
+        TaskUpdateDto["TaskUpdateDto<br/>(Update)"]
+    end
+    
+    subgraph Mapping["AutoMapper"]
+Profile["MappingProfile"]
+    end
+    
+    subgraph Internal["Internal Domain"]
+        Model["TaskModel<br/>(Domain)"]
+    end
+    
+    subgraph Database["Database"]
+        DB[("Tasks Table")]
+    end
+    
+    Client -->|GET| TaskDto
+    Client -->|POST| TaskCreateDto
+    Client -->|PUT| TaskUpdateDto
+    
+    TaskDto -.->|Map| Profile
+    TaskCreateDto -.->|Map| Profile
+    TaskUpdateDto -.->|Map| Profile
+    
+    Profile -.->|Map| Model
+    Model --> DB
+    
+    style External fill:#e1f5ff
+    style DTOs fill:#f3e5f5
+    style Mapping fill:#f1f8e9
+    style Internal fill:#fff3e0
+    style Database fill:#ffebee
+```
+
+---
+
+## 🔧 CORS Flow
+
+```mermaid
+sequenceDiagram
+    participant B as Browser
+  participant CH as CorsHandler
+    participant API as Web API
+ participant R as Resource
+
+    Note over B: Simple Request (GET)
+    B->>API: GET /api/TasksApi
+    API-->>B: Response + CORS Headers<br/>Access-Control-Allow-Origin: *
+
+    Note over B: Preflight Required (POST/PUT/DELETE)
+    B->>CH: OPTIONS /api/TasksApi<br/>(Preflight Request)
+    Note over CH: Check if OPTIONS method
+    CH-->>B: HTTP 200 OK<br/>Access-Control-Allow-Origin: *<br/>Access-Control-Allow-Methods: GET, POST, PUT, DELETE<br/>Access-Control-Allow-Headers: Content-Type
+    
+    Note over B: Preflight approved
+    B->>API: POST /api/TasksApi<br/>Actual Request
+    API->>R: Process Request
+  R-->>API: Response
+    API-->>B: HTTP 201 Created + CORS Headers
+```
+
+---
 ## 🎨 Design Patterns
 
 ### 1️⃣ Repository Pattern
