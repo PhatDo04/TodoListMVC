@@ -1508,6 +1508,7 @@ Khi deploy production, nên:
 **Phat Do**
 - GitHub: [@PhatDo04](https://github.com/PhatDo04)
 - Repository: [TodoListMVC](https://github.com/PhatDo04/TodoListMVC)
+- Javascript Client Example: [TodoListClient](https://github.com/PhatDo04/todolist)
 
 ---
 
