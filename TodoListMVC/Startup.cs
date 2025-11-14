@@ -1,8 +1,8 @@
-﻿using Microsoft.Owin;
+﻿using Microsoft.Owin;               
 using Microsoft.Owin.Cors;
 using Owin;
 using System;
-using System.Threading.Tasks;
+
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Owin.Security;
 using Microsoft.Owin.Security.Jwt;
@@ -19,7 +19,7 @@ namespace TodoListMVC
         public void Configuration(IAppBuilder app)
         {
             // Cors: cho phép tất cả origin - dev, production thì cấu hình cụ thể
-            app.UseCors(CorsOptions.AllowAll);
+            app.UseCors(CorsOptions.AllowAll);  
             // Cấu hình JWT Bearer
             ConfigureJWT(app);
             // Web API
