@@ -11,7 +11,9 @@ namespace TodoListMVC.Repositories
         public readonly SqlConnection _connection;
         private SqlTransaction _transaction;
         private bool _disposed = false;
+        
         public ITaskRepository Tasks { get; private set; }
+        public IUserRepository Users { get; private set; }
 
         public UnitOfWork()
         {
@@ -27,6 +29,9 @@ namespace TodoListMVC.Repositories
 
             //Sếp tạo nhân viên TaskRepository, truyền vào kết nối và giao dịch
             Tasks = new SqlTaskRepository(_connection, _transaction);
+            
+            //Sếp tạo nhân viên UserRepository
+            Users = new UserRepository(_connection, _transaction);
         }
 
         //Nút hoàn tất giao dịch

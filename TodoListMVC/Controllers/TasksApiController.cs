@@ -8,6 +8,7 @@ using TodoListMVC.Repositories;
 
 namespace TodoListMVC.Controllers
 {
+    [Authorize] // ← THÊM DÒNG NÀY - Yêu cầu JWT token cho tất cả actions
     public class TasksApiController : ApiController
     {
         //Giữ "khớp nối" (Interface)
