@@ -1,14 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Web;
 
 namespace TodoListMVC.App_Start
 {
     public class JwtConfig
     {
         public static string Issuer = "TodoListMVC";
-        
+
         public static string Audience = "todolist";
 
         public static string Secret = "slkajdflkjl12kj3l13908a0s9cdaolidkaldje212_l23n1l";

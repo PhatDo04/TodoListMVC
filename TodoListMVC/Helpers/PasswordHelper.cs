@@ -1,5 +1,4 @@
 using System;
-using BCrypt.Net;
 
 namespace TodoListMVC.Helpers
 {

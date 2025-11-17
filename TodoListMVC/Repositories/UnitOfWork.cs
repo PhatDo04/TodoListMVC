@@ -1,8 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Data.SqlClient;
-using System.Linq;
-using System.Web;
 
 namespace TodoListMVC.Repositories
 {
@@ -11,7 +8,7 @@ namespace TodoListMVC.Repositories
         public readonly SqlConnection _connection;
         private SqlTransaction _transaction;
         private bool _disposed = false;
-        
+
         public ITaskRepository Tasks { get; private set; }
         public IUserRepository Users { get; private set; }
 
@@ -29,7 +26,7 @@ namespace TodoListMVC.Repositories
 
             //Sếp tạo nhân viên TaskRepository, truyền vào kết nối và giao dịch
             Tasks = new SqlTaskRepository(_connection, _transaction);
-            
+
             //Sếp tạo nhân viên UserRepository
             Users = new UserRepository(_connection, _transaction);
         }
@@ -84,7 +81,7 @@ namespace TodoListMVC.Repositories
                 _transaction?.Dispose();
 
                 // "Dọn dẹp" kết nối
-                _connection?.Dispose(); 
+                _connection?.Dispose();
             }
             //Đánh dấu đã dọn
             _disposed = true;

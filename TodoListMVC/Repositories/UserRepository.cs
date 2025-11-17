@@ -40,5 +40,23 @@ namespace TodoListMVC.Repositories
 
             return null; // User không t?n t?i
         }
+
+        public UserModel Create(UserModel user)
+        {
+            const string sql = @"INSERT INTO Users (Email, PasswordHash, CreatedAt)
+                                VALUES (@Email, @PasswordHash, @CreatedAt);
+                                SELECT SCOPE_IDENTITY();";
+
+            using (var cmd = new SqlCommand(sql, _connection, _transaction))
+            {
+                cmd.Parameters.AddWithValue("@Email", user.Email);
+                cmd.Parameters.AddWithValue("@PasswordHash", user.PasswordHash);
+                cmd.Parameters.AddWithValue("@CreatedAt", user.CreatedAt);
+
+                var newIdObj = cmd.ExecuteScalar();
+                user.Id = Convert.ToInt32(newIdObj);
+                return user;
+            }
+        }
     }
 }

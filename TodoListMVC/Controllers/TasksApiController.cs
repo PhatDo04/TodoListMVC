@@ -1,6 +1,8 @@
 ﻿using AutoMapper;
 using System;
 using System.Collections.Generic;
+using System.Net;
+using System.Net.Http;
 using System.Web.Http;
 using TodoListMVC.DTOs;
 using TodoListMVC.Models;
@@ -8,7 +10,7 @@ using TodoListMVC.Repositories;
 
 namespace TodoListMVC.Controllers
 {
-    [Authorize] // ← THÊM DÒNG NÀY - Yêu cầu JWT token cho tất cả actions
+    [Authorize] // Yêu cầu JWT token cho tất cả actions
     public class TasksApiController : ApiController
     {
         //Giữ "khớp nối" (Interface)
@@ -33,7 +35,7 @@ namespace TodoListMVC.Controllers
                 var taskModel = _uow.Tasks.GetTasks();
                 //dịch sang DTO (tự động lặp và dịch từng cái)
                 var taskDtos = _mapper.Map<IEnumerable<TaskDto>>(taskModel);
-                //Trả về JSON + mã 200 OK
+                //Trả về JSON + mã200 OK
                 return Ok(taskDtos);
             }
             catch (Exception ex)
@@ -53,7 +55,7 @@ namespace TodoListMVC.Controllers
                     return NotFound();
                 }
                 var taskDto = _mapper.Map<TaskDto>(taskModel);
-                // Trả về JSON (1 task) + mã 200 OK
+                // Trả về JSON (1 task) + mã200 OK
                 return Ok(taskDto);
             }
             catch (Exception ex)
@@ -67,7 +69,7 @@ namespace TodoListMVC.Controllers
         [HttpPost]
         public IHttpActionResult PostTask([FromBody] TaskCreateDto taskDto)
         {
-            if (!ModelState.IsValid) //Nếu model gửi lên  bị lỗi (vd: thiếu Title)
+            if (!ModelState.IsValid) //Nếu model gửi lên bị lỗi (vd: thiếu Title)
             {
                 return BadRequest(ModelState);
             }
@@ -81,7 +83,7 @@ namespace TodoListMVC.Controllers
                 taskModel.UpdatedAt = DateTime.Now;
                 //Gửi model xuống repository để lưu vào CSDL để tạo task mới
                 var createdTaskModel = _uow.Tasks.PostTask(taskModel);
-                
+
                 _uow.SaveChanges(); //Hoàn tất giao dịch (Commit)
 
                 //Lấy task vừa tạo xong từ CSDL (để chắc chắn có đầy đủ dữ liệu)
@@ -90,9 +92,11 @@ namespace TodoListMVC.Controllers
                 //Dịch ngược Model vừa tạo xong sang DTO để trả về cho client
                 var createdTaskDto = _mapper.Map<TaskDto>(createdTaskModel);
 
-                //Trả về mã 201 Created
-                //Kèm  theo 1 link đến API "Get" (api/TasksApi/Id) và dữ liệu task mới
-                return CreatedAtRoute("DefaultApi", new { id = createdTaskDto.Id }, createdTaskDto);
+                // Trả về201 Created + Location header (không dùng CreatedAtRoute để tránh UrlHelper trong OWIN)
+                var location = new Uri($"{Request.RequestUri.GetLeftPart(UriPartial.Authority)}/api/TasksApi/{createdTaskDto.Id}");
+                var response = Request.CreateResponse(HttpStatusCode.Created, createdTaskDto);
+                response.Headers.Location = location;
+                return ResponseMessage(response);
             }
             catch (Exception ex)
             {
@@ -123,7 +127,7 @@ namespace TodoListMVC.Controllers
 
             _uow.SaveChanges(); //Hoàn tất giao dịch (Commit)
 
-            //Trả về 200 OK
+            //Trả về200 OK
             return Ok();
         }
 

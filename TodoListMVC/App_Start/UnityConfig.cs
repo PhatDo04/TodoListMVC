@@ -1,10 +1,10 @@
 ﻿using AutoMapper;
 using System.Web.Http;
 using TodoListMVC.App_Start;
-using Unity;
-using Unity.WebApi;
 using TodoListMVC.Repositories;
+using Unity;
 using Unity.Lifetime;
+using Unity.WebApi;
 namespace TodoListMVC
 {
     public static class UnityConfig
@@ -30,7 +30,7 @@ namespace TodoListMVC
             // e.g. container.RegisterType<ITestService, TestService>();
             //Đăng ký IUnitOfWork với Unity Container (theo kiểu HierarchicalLifetimeManager)
             //HierarchicalLifetimeManager: mỗi yêu cầu HTTP sẽ có 1 thể hiện riêng biệt của UnitOfWork
-            container.RegisterType<IUnitOfWork,UnitOfWork>(new HierarchicalLifetimeManager());
+            container.RegisterType<IUnitOfWork, UnitOfWork>(new HierarchicalLifetimeManager());
             GlobalConfiguration.Configuration.DependencyResolver = new UnityDependencyResolver(container);
         }
     }

@@ -20,13 +20,12 @@ namespace TodoListMVC.Controllers
         private readonly IMapper _mapper;
 
         public AuthController(
-            IUserRepository userRepository,
             IUnitOfWork unitOfWork,
             IMapper mapper)
         {
-            _userRepository = userRepository;
             _unitOfWork = unitOfWork;
             _mapper = mapper;
+            _userRepository = _unitOfWork.Users; // Lấy repo từ UoW để dùng chung connection/transaction
         }
 
         [AllowAnonymous]
@@ -49,6 +48,50 @@ namespace TodoListMVC.Controllers
 
             return Ok(new
             {
+                id = user.Id,
+                email = user.Email,
+
+                access_token = token,
+                token_type = "bearer",
+                expires_in = (int)JwtConfig.TokenLifetime.TotalSeconds
+            });
+        }
+
+        [AllowAnonymous]
+        [HttpPost]
+        [Route("register")]
+        public IHttpActionResult Register(RegisterDto model)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            // Check email existed
+            var existing = _userRepository.GetByEmail(model.Email);
+            if (existing != null)
+            {
+                return Content(System.Net.HttpStatusCode.Conflict, new { message = "Email đã tồn tại" });
+            }
+
+            // Hash password
+            var passwordHash = BCrypt.Net.BCrypt.HashPassword(model.Password);
+
+            var user = new UserModel
+            {
+                Email = model.Email,
+                PasswordHash = passwordHash,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            // Create user
+            var created = _userRepository.Create(user);
+            _unitOfWork.SaveChanges();
+
+            // Return JWT immediately or201 with basic info
+            var token = CreateJwtToken(created);
+            return Content(System.Net.HttpStatusCode.Created, new
+            {
+                id = created.Id,
+                email = created.Email,
                 access_token = token,
                 token_type = "bearer",
                 expires_in = (int)JwtConfig.TokenLifetime.TotalSeconds
