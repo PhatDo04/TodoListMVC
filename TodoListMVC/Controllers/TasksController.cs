@@ -7,6 +7,7 @@ using TodoListMVC.Models; // Sử dụng TaskModel
 
 namespace TodoListMVC.Controllers
 {
+    [Authorize]
     public class TasksController : Controller
     {
         //Lấy connection string từ web.config

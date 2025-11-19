@@ -28,7 +28,6 @@ namespace TodoListMVC.Handlers
                 .ContinueWith(task =>
                 {
                     var response = task.Result;
-                    response.Headers.Add("Access-Control-Allow-Origin", "*");
                     return response;
                 });
         }

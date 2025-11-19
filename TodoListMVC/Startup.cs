@@ -12,6 +12,8 @@ using System.Configuration;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web.Http;
+using System.Web.Mvc;
+using System.Web.Routing;
 using TodoListMVC.App_Start;
 
 [assembly: OwinStartup(typeof(TodoListMVC.Startup))]
@@ -31,8 +33,8 @@ namespace TodoListMVC
         private static string redirectUri = ConfigurationManager.AppSettings["oidc:RedirectUri"];
         public void Configuration(IAppBuilder app)
         {
-            // Cors: cho phép tất cả origin - dev, production thì cấu hình cụ thể
-            app.UseCors(CorsOptions.AllowAll);
+            // CORS được xử lý bởi Web API EnableCorsAttribute trong WebApiConfig.cs
+            // Không dùng app.UseCors ở đây để tránh duplicate headers
 
             // Cấu hình SSO với OpenID Connect
             // 1. Cấu hình loại xác thực "Mặc định"
@@ -95,10 +97,14 @@ namespace TodoListMVC
 
             // Cấu hình JWT Bearer
             ConfigureJWT(app);
-            // Web API
-            var config = GlobalConfiguration.Configuration;
-            WebApiConfig.Register(config);
-            app.UseWebApi(config);
+
+            // Web API - chỉ xử lý requests bắt đầu bằng /api/
+            app.Map("/api", api =>
+            {
+                var config = new HttpConfiguration();
+                WebApiConfig.Register(config);
+                api.UseWebApi(config);
+            });
         }
 
         private void ConfigureJWT(IAppBuilder app)

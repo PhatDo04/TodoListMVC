@@ -4,7 +4,6 @@ using System.Linq;
 using System.Web;
 using System.Web.Http;
 using System.Web.Http.Cors;
-using TodoListMVC.Handlers;
 
 namespace TodoListMVC.App_Start
 {
@@ -12,10 +11,7 @@ namespace TodoListMVC.App_Start
     {
         public static void Register(HttpConfiguration config)
         {
-            // Add CORS handler to handle OPTIONS requests
-            config.MessageHandlers.Add(new CorsHandler());
-
-            // Enable CORS globally - MUST be first
+            // Enable CORS globally
             var cors = new EnableCorsAttribute(
                 origins: "*",           // Cho phép tất cả origins
                 headers: "*",           // Cho phép tất cả headers
