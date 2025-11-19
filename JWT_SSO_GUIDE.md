@@ -1,74 +1,74 @@
-# ?? H??ng D?n C?u H�nh JWT & SSO To�n Di?n
+# 🔐 Hướng Dẫn Cấu Hình JWT & SSO Toàn Diện
 
-## ?? T?ng Quan
+## 📋 Tổng Quan
 
-D? �n n�y s? d?ng **2 ph??ng th?c x�c th?c song song**:
+Dự án này sử dụng **2 phương thức xác thực song song**:
 
 1. **JWT (JSON Web Tokens)** - Cho API authentication
-2. **SSO (Single Sign-On)** v?i OpenID Connect - Cho web authentication
+2. **SSO (Single Sign-On)** với OpenID Connect - Cho web authentication
 
 ---
 
-## ?? Ki?n Tr�c T?ng Quan
+## 🎯 Kiến Trúc Tổng Quan
 
 ```
-???????????????????????????????????????????????????????????????????????
-?      AUTHENTICATION ARCHITECTURE           ?
-???????????????????????????????????????????????????????????????????????
+┌─────────────────────────────────────────────────────────────────────┐
+│      AUTHENTICATION ARCHITECTURE           │
+└─────────────────────────────────────────────────────────────────────┘
 
-????????????????      ????????????????????????????
-?   Browser    ?     ?   External Client/App    ?
-?  (MVC Views) ?           ?   (Mobile, SPA, etc.)    ?
-????????????????              ????????????????????????????
-       ?           ?
-       ? Cookie-based             ? Token-based
-     ? SSO Auth        ? JWT Auth
-       ?         ?
-???????????????????????????????????????????????????????????????????????
-?        OWIN STARTUP (Startup.cs)      ?
-?  ?????????????????????????         ????????????????????????????     ?
-?  ?  SSO Middleware       ?      ?  JWT Middleware     ?     ?
-?  ?  ?????????????        ?       ?  ??????????????          ?     ?
-?  ?  ? Cookie Auth        ?         ?  ? Bearer Token Auth  ?     ?
-?  ?  ? OpenID Connect     ?    ?  ? Token Validation    ?     ?
-?  ?  ? Auth0 Integration  ?   ?  ? Claim-based Identity  ?     ?
-?  ?????????????????????????         ????????????????????????????     ?
-???????????????????????????????????????????????????????????????????????
-          ?
-        ?
-???????????????????????????????????????????????????????????????????????
-?             CONTROLLERS   ?
-?  ???????????????????????     ????????????????????????????     ?
-?  ?  MVC Controllers    ?           ?  API Controllers       ?     ?
-?  ?  ?????????????????  ?           ?  ???????????????????     ?     ?
-?  ?[Authorize]        ?   ?  [Authorize]             ??
-?  ?  ? Cookie check     ?           ?  ? JWT Bearer check  ?     ?
-?  ?  ? Redirect to login?           ?  ? Return 401    ?     ?
-?  ?         ? ?   ?     ?
-?  ?  TasksController    ?      ?  TasksApiController      ?     ?
-?  ?  ?      ?  AuthController          ?     ?
-?  ???????????????????????????????????????????????????     ?
-???????????????????????????????????????????????????????????????????????
+┌──────────────┐      ┌──────────────────────────┐
+│   Browser    │     │   External Client/App    │
+│  (MVC Views) │           │   (Mobile, SPA, etc.)    │
+└──────┬───────┘              └──────────┬───────────────┘
+       │           │
+       │ Cookie-based             │ Token-based
+     │ SSO Auth        │ JWT Auth
+       ▼         ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│        OWIN STARTUP (Startup.cs)      │
+│  ┌───────────────────────┐         ┌──────────────────────────┐     │
+│  │  SSO Middleware       │      │  JWT Middleware     │     │
+│  │  ─────────────        │       │  ──────────────          │     │
+│  │  ✓ Cookie Auth        │         │  ✓ Bearer Token Auth  │     │
+│  │  ✓ OpenID Connect     │    │  ✓ Token Validation    │     │
+│  │  ✓ Auth0 Integration  │   │  ✓ Claim-based Identity  │     │
+│  └───────────────────────┘         └──────────────────────────┘     │
+└─────────────────────────────────────────────────────────────────────┘
+          │
+        ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│             CONTROLLERS   │
+│  ┌─────────────────────┐     ┌──────────────────────────┐     │
+│  │  MVC Controllers    │           │  API Controllers       │     │
+│  │  ─────────────────  │           │  ───────────────────     │     │
+│  │[Authorize]        │   │  [Authorize]             ││
+│  │  → Cookie check     │           │  → JWT Bearer check  │     │
+│  │  → Redirect to login│           │  → Return 401    │     │
+│  │         │ │   │     │
+│  │  TasksController    │      │  TasksApiController      │     │
+│  │  │      │  AuthController          │     │
+│  └─────────────────────┘└──────────────────────────┘     │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## ?? JWT Authentication
+## 🔑 JWT Authentication
 
-### 1. JWT l� g�?
+### 1. JWT là gì?
 
-JWT (JSON Web Token) l� m?t chu?n m? (RFC 7519) ?? truy?n th�ng tin an to�n gi?a c�c b�n d??i d?ng JSON object.
+JWT (JSON Web Token) là một chuẩn mở (RFC 7519) để truyền thông tin an toàn giữa các bên dưới dạng JSON object.
 
-**C?u tr�c JWT**:
+**Cấu trúc JWT**:
 ```
 xxxxx.yyyyy.zzzzz
-  ?     ?     ?
-  ?     ?     ???? Signature (ch? k�)
-  ?     ?????????? Payload (d? li?u)
-  ???????????????? Header (metadata)
+  │     │     │
+  │     │     └─── Signature (chữ ký)
+  │     └───────── Payload (dữ liệu)
+  └─────────────── Header (metadata)
 ```
 
-### 2. Lu?ng Ho?t ??ng JWT
+### 2. Luồng Hoạt Động JWT
 
 ```mermaid
 sequenceDiagram
@@ -78,17 +78,17 @@ participant API as API Server
     participant UoW as UnitOfWork
     participant DB as Database
 
-    Note over Client,DB: ?? REGISTRATION FLOW
+    Note over Client,DB: 🔐 REGISTRATION FLOW
     Client->>Auth: POST /api/auth/register
     Note right of Client: Body: {<br/>  email: "user@example.com",<br/>  password: "Pass123",<br/>  confirmPassword: "Pass123"<br/>}
     
     Auth->>Auth: Validate ModelState
     Auth->>UoW: Users.GetByEmail(email)
     UoW->>DB: SELECT * FROM Users WHERE Email = @Email
-    DB-->>UoW: null (email ch?a t?n t?i)
+    DB-->>UoW: null (email chưa tồn tại)
     UoW-->>Auth: null
     
-    Auth->>Auth: Hash password v?i BCrypt
+    Auth->>Auth: Hash password với BCrypt
     Note right of Auth: passwordHash = BCrypt.HashPassword(password)
     
     Auth->>UoW: Users.Create(userModel)
@@ -105,7 +105,7 @@ participant API as API Server
     Auth-->>Client: HTTP 201 Created
     Note left of Auth: {<br/>  "id": 1,<br/>  "email": "user@example.com",<br/>  "access_token": "eyJhbG...",<br/>  "token_type": "bearer",<br/>  "expires_in": 3600<br/>}
  
-    Note over Client,DB: ?? LOGIN FLOW
+    Note over Client,DB: 🔓 LOGIN FLOW
     Client->>Auth: POST /api/auth/login
     Note right of Client: Body: {<br/>  email: "user@example.com",<br/>  password: "Pass123"<br/>}
     
@@ -129,7 +129,7 @@ participant API as API Server
         end
     end
     
-    Note over Client,DB: ?? PROTECTED API ACCESS
+    Note over Client,DB: 📝 PROTECTED API ACCESS
     Client->>API: GET /api/TasksApi
     Note right of Client: Headers:<br/>  Authorization: Bearer eyJhbG...
     
@@ -149,9 +149,9 @@ UoW-->>API: List<TaskModel>
     end
 ```
 
-### 3. C?u H�nh JWT (Step by Step)
+### 3. Cấu Hình JWT (Step by Step)
 
-#### B??c 1: C�i ??t NuGet Packages
+#### Bước 1: Cài đặt NuGet Packages
 
 ```powershell
 # Package Manager Console
@@ -160,7 +160,7 @@ Install-Package Microsoft.Owin.Security.Jwt -Version 4.2.3
 Install-Package BCrypt.Net-Next -Version 4.0.3
 ```
 
-#### B??c 2: T?o JwtConfig.cs
+#### Bước 2: Tạo JwtConfig.cs
 
 ```csharp
 // TodoListMVC/App_Start/JwtConfig.cs
@@ -170,28 +170,28 @@ namespace TodoListMVC.App_Start
 {
     public class JwtConfig
     {
-        // Issuer: Ng??i ph�t h�nh token (application name)
+        // Issuer: Người phát hành token (application name)
      public static string Issuer = "TodoListMVC";
 
-        // Audience: ??i t??ng s? d?ng token (service name)
+        // Audience: Đối tượng sử dụng token (service name)
         public static string Audience = "todolist";
 
-        // Secret: Kh�a b� m?t ?? k� token (PH?I ??i trong production!)
-      // T?i thi?u 32 k� t?, n�n d�ng random string
+        // Secret: Khóa bí mật để ký token (PHẢI đổi trong production!)
+      // Tối thiểu 32 ký tự, nên dùng random string
         public static string Secret = "slkajdflkjl12kj3l13908a0s9cdaolidkaldje212_l23n1l";
 
-        // TokenLifetime: Th?i gian s?ng c?a token
+        // TokenLifetime: Thời gian sống của token
         public static readonly TimeSpan TokenLifetime = TimeSpan.FromHours(1);
     }
 }
 ```
 
-**?? B?O M?T**: Trong production:
-- ??i `Secret` th�nh random string m?nh
-- L?u trong Environment Variables ho?c Azure Key Vault
-- **KH�NG COMMIT** secret v�o Git
+**⚠️ BẢO MẬT**: Trong production:
+- Đổi `Secret` thành random string mạnh
+- Lưu trong Environment Variables hoặc Azure Key Vault
+- **KHÔNG COMMIT** secret vào Git
 
-#### B??c 3: T?o UserModel v� UserRepository
+#### Bước 3: Tạo UserModel và UserRepository
 
 ```csharp
 // TodoListMVC/Models/UserModel.cs
@@ -290,7 +290,7 @@ namespace TodoListMVC.Repositories
 }
 ```
 
-#### B??c 4: C?p nh?t IUnitOfWork
+#### Bước 4: Cập nhật IUnitOfWork
 
 ```csharp
 // TodoListMVC/Repositories/IUnitOfWork.cs
@@ -301,7 +301,7 @@ namespace TodoListMVC.Repositories
     public interface IUnitOfWork : IDisposable
     {
         ITaskRepository Tasks { get; }
-        IUserRepository Users { get; } // ? Th�m d�ng n�y
+        IUserRepository Users { get; } // ← Thêm dòng này
         int SaveChanges();
     }
 }
@@ -320,14 +320,14 @@ public class UnitOfWork : IUnitOfWork
         // ...existing connection setup...
         
       Tasks = new SqlTaskRepository(_connection, _transaction);
-      Users = new SqlUserRepository(_connection, _transaction); // ? Th�m
+      Users = new SqlUserRepository(_connection, _transaction); // ← Thêm
     }
     
     // ...rest of code...
 }
 ```
 
-#### B??c 5: T?o DTOs cho Authentication
+#### Bước 5: Tạo DTOs cho Authentication
 
 ```csharp
 // TodoListMVC/DTOs/LoginDto.cs
@@ -337,12 +337,12 @@ namespace TodoListMVC.DTOs
 {
     public class LoginDto
     {
-        [Required(ErrorMessage = "Email l� b?t bu?c")]
-        [EmailAddress(ErrorMessage = "Email kh�ng h?p l?")]
+        [Required(ErrorMessage = "Email là bắt buộc")]
+        [EmailAddress(ErrorMessage = "Email không hợp lệ")]
         public string Email { get; set; }
 
-        [Required(ErrorMessage = "Password l� b?t bu?c")]
-        [MinLength(6, ErrorMessage = "Password ph?i c� �t nh?t 6 k� t?")]
+        [Required(ErrorMessage = "Password là bắt buộc")]
+        [MinLength(6, ErrorMessage = "Password phải có ít nhất 6 ký tự")]
         public string Password { get; set; }
     }
 }
@@ -356,21 +356,21 @@ namespace TodoListMVC.DTOs
 {
     public class RegisterDto
     {
-        [Required(ErrorMessage = "Email l� b?t bu?c")]
-        [EmailAddress(ErrorMessage = "Email kh�ng h?p l?")]
+        [Required(ErrorMessage = "Email là bắt buộc")]
+        [EmailAddress(ErrorMessage = "Email không hợp lệ")]
         public string Email { get; set; }
 
-        [Required(ErrorMessage = "Password l� b?t bu?c")]
-        [MinLength(6, ErrorMessage = "Password ph?i c� �t nh?t 6 k� t?")]
+        [Required(ErrorMessage = "Password là bắt buộc")]
+        [MinLength(6, ErrorMessage = "Password phải có ít nhất 6 ký tự")]
    public string Password { get; set; }
 
-        [Compare("Password", ErrorMessage = "M?t kh?u x�c nh?n kh�ng kh?p")]
+        [Compare("Password", ErrorMessage = "Mật khẩu xác nhận không khớp")]
         public string ConfirmPassword { get; set; }
     }
 }
 ```
 
-#### B??c 6: T?o AuthController
+#### Bước 6: Tạo AuthController
 
 ```csharp
 // TodoListMVC/Controllers/AuthController.cs
@@ -403,7 +403,7 @@ namespace TodoListMVC.Controllers
       }
 
 /// <summary>
-        /// ??ng k� user m?i
+        /// Đăng ký user mới
    /// </summary>
         [AllowAnonymous]
       [HttpPost]
@@ -413,15 +413,15 @@ namespace TodoListMVC.Controllers
  if (!ModelState.IsValid)
  return BadRequest(ModelState);
 
-       // Ki?m tra email ?� t?n t?i
+       // Kiểm tra email đã tồn tại
             var existing = _userRepository.GetByEmail(model.Email);
         if (existing != null)
      {
  return Content(System.Net.HttpStatusCode.Conflict, 
-              new { message = "Email ?� t?n t?i" });
+              new { message = "Email đã tồn tại" });
             }
 
-         // Hash password v?i BCrypt
+         // Hash password với BCrypt
    var passwordHash = BCrypt.Net.BCrypt.HashPassword(model.Password);
 
          var user = new UserModel
@@ -431,11 +431,11 @@ namespace TodoListMVC.Controllers
        CreatedAt = DateTime.UtcNow
             };
 
-     // T?o user trong database
+     // Tạo user trong database
         var created = _userRepository.Create(user);
       _unitOfWork.SaveChanges();
 
-            // T?o JWT token ngay sau khi ??ng k�
+            // Tạo JWT token ngay sau khi đăng ký
             var token = CreateJwtToken(created);
          
          return Content(System.Net.HttpStatusCode.Created, new
@@ -449,7 +449,7 @@ namespace TodoListMVC.Controllers
         }
 
         /// <summary>
-        /// ??ng nh?p
+        /// Đăng nhập
       /// </summary>
         [AllowAnonymous]
         [HttpPost]
@@ -480,7 +480,7 @@ namespace TodoListMVC.Controllers
   }
 
       /// <summary>
-  /// Verify password v?i BCrypt
+  /// Verify password với BCrypt
      /// </summary>
      private bool VerifyPassword(string password, string passwordHash)
         {
@@ -488,25 +488,25 @@ namespace TodoListMVC.Controllers
      }
 
  /// <summary>
-   /// T?o JWT Token
+   /// Tạo JWT Token
         /// </summary>
         private string CreateJwtToken(UserModel user)
     {
             var key = Encoding.UTF8.GetBytes(JwtConfig.Secret);
 
-            // Claims: Th�ng tin user ???c nh�ng v�o token
+            // Claims: Thông tin user được nhúng vào token
             var claims = new[]
  {
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
        new Claim(ClaimTypes.Email, user.Email ?? string.Empty),
     };
 
-            // Signing credentials: Ch? k� c?a token
+            // Signing credentials: Chữ ký của token
           var creds = new SigningCredentials(
            new SymmetricSecurityKey(key),
     SecurityAlgorithms.HmacSha256);
 
-            // T?o token
+            // Tạo token
        var token = new JwtSecurityToken(
        issuer: JwtConfig.Issuer,
   audience: JwtConfig.Audience,
@@ -521,7 +521,7 @@ namespace TodoListMVC.Controllers
 }
 ```
 
-#### B??c 7: C?u h�nh JWT trong Startup.cs
+#### Bước 7: Cấu hình JWT trong Startup.cs
 
 ```csharp
 // TodoListMVC/Startup.cs
@@ -542,10 +542,10 @@ namespace TodoListMVC
   {
         public void Configuration(IAppBuilder app)
       {
-  // C?u h�nh JWT Bearer Authentication
+  // Cấu hình JWT Bearer Authentication
             ConfigureJWT(app);
 
-       // C?u h�nh Web API
+       // Cấu hình Web API
      app.Map("/api", api =>
           {
     var config = new HttpConfiguration();
@@ -560,24 +560,24 @@ namespace TodoListMVC
 
    var tokenValidationParameters = new TokenValidationParameters
        {
-       // Validate Issuer (ng??i ph�t h�nh)
+       // Validate Issuer (người phát hành)
      ValidateIssuer = true,
      ValidIssuer = JwtConfig.Issuer,
 
-     // Validate Audience (??i t??ng s? d?ng)
+     // Validate Audience (đối tượng sử dụng)
     ValidateAudience = true,
      ValidAudience = JwtConfig.Audience,
 
-                // Validate ch? k�
+                // Validate chữ ký
      ValidateIssuerSigningKey = true,
            IssuerSigningKey = new SymmetricSecurityKey(key),
 
-             // Validate th?i gian h?t h?n
+             // Validate thời gian hết hạn
         ValidateLifetime = true,
-  ClockSkew = TimeSpan.FromMinutes(2) // Cho ph�p sai l?ch 2 ph�t
+  ClockSkew = TimeSpan.FromMinutes(2) // Cho phép sai lệch 2 phút
             };
 
-       // S? d?ng JWT Bearer Authentication middleware
+       // Sử dụng JWT Bearer Authentication middleware
  app.UseJwtBearerAuthentication(new JwtBearerAuthenticationOptions
    {
   AuthenticationMode = AuthenticationMode.Active,
@@ -588,7 +588,7 @@ namespace TodoListMVC
 }
 ```
 
-#### B??c 8: T?o Database Table
+#### Bước 8: Tạo Database Table
 
 ```sql
 -- Run trong SQL Server Management Studio
@@ -603,14 +603,14 @@ CREATE TABLE Users (
 );
 GO
 
--- Th�m index cho Email (?? t�m ki?m nhanh)
+-- Thêm index cho Email (để tìm kiếm nhanh)
 CREATE INDEX IX_Users_Email ON Users(Email);
 GO
 ```
 
-#### B??c 9: Test JWT API
+#### Bước 9: Test JWT API
 
-**Test v?i Postman/cURL:**
+**Test với Postman/cURL:**
 
 ```bash
 # 1. Register
@@ -646,21 +646,21 @@ curl -X GET https://localhost:44348/api/TasksApi \
 
 ---
 
-## ?? SSO (Single Sign-On) v?i OpenID Connect
+## 🌐 SSO (Single Sign-On) với OpenID Connect
 
-###1. SSO l� g�?
+###1. SSO là gì?
 
-SSO cho ph�p ng??i d�ng ??ng nh?p m?t l?n v� truy c?p nhi?u ?ng d?ng m� kh�ng c?n ??ng nh?p l?i.
+SSO cho phép người dùng đăng nhập một lần và truy cập nhiều ứng dụng mà không cần đăng nhập lại.
 
-**?u ?i?m**:
-- ? Tr?i nghi?m ng??i d�ng t?t h?n
-- ? B?o m?t t?p trung
-- ? Qu?n l� user d? d�ng
-- ? H? tr? MFA (Multi-Factor Authentication)
+**Ưu điểm**:
+- ✅ Trải nghiệm người dùng tốt hơn
+- ✅ Bảo mật tập trung
+- ✅ Quản lý user dễ dàng
+- ✅ Hỗ trợ MFA (Multi-Factor Authentication)
 
 ---
 
-###2. Lu?ng Ho?t ??ng SSO (sau khi ?� c?u h�nh th�nh c�ng)
+###2. Luồng Hoạt Động SSO (sau khi đã cấu hình thành công)
 
 ```mermaid
 sequenceDiagram
@@ -695,98 +695,98 @@ sequenceDiagram
 
 ---
 
-###3. Nh?ng thay ??i ch�nh ?� �p d?ng trong d? �n (SSO ho�n thi?n)
+###3. Những thay đổi chính đã áp dụng trong dự án (SSO hoàn thiện)
 
 - `Startup.cs`:
- - `app.UseCookieAuthentication(...)` ?� c?u h�nh `CookieName = "TodoListMVC.Auth"`, `ExpireTimeSpan`, `SlidingExpiration`, `CookieHttpOnly`.
- - `app.UseOpenIdConnectAuthentication(...)` ?� ??t `RedirectUri` v� `PostLogoutRedirectUri` ph� h?p.
- - Trong `RedirectToIdentityProvider` notification, logout request ???c build th�nh URL `https://{authority}v2/logout?client_id={clientId}&returnTo={postLogoutUri}` ?? t??ng th�ch v?i Auth0 v2 logout.
- - `AuthenticationFailed` redirect v? `/Error/ShowError` v?i th�ng b�o r� r�ng.
+ - `app.UseCookieAuthentication(...)` đã cấu hình `CookieName = "TodoListMVC.Auth"`, `ExpireTimeSpan`, `SlidingExpiration`, `CookieHttpOnly`.
+ - `app.UseOpenIdConnectAuthentication(...)` đã đặt `RedirectUri` và `PostLogoutRedirectUri` phù hợp.
+ - Trong `RedirectToIdentityProvider` notification, logout request được build thành URL `https://{authority}v2/logout?client_id={clientId}&returnTo={postLogoutUri}` để tương thích với Auth0 v2 logout.
+ - `AuthenticationFailed` redirect về `/Error/ShowError` với thông báo rõ ràng.
 
 - `AccountController`:
- - `Login(string returnUrl)` ? g?i `Authentication.Challenge(...)` ?? k�ch ho?t OIDC login flow.
- - `Logout()` ? x�a cookie local v� g?i SignOut OIDC; middleware redirect ??n Auth0 logout endpoint.
- - `PostLogout()` ? action ?? nh?n redirect sau khi Auth0 logout v� chuy?n v? Home.
- - `Profile()` ? hi?n th? claims l?y t? cookie (SSO).
+ - `Login(string returnUrl)` → gọi `Authentication.Challenge(...)` để kích hoạt OIDC login flow.
+ - `Logout()` → xóa cookie local và gọi SignOut OIDC; middleware redirect đến Auth0 logout endpoint.
+ - `PostLogout()` → action để nhận redirect sau khi Auth0 logout và chuyển về Home.
+ - `Profile()` → hiển thị claims lấy từ cookie (SSO).
 
 - Views:
- - `Views/Account/Profile.cshtml` hi?n th? claims.
- - `Views/Account/AccessDenied.cshtml` v� `Views/Error/ShowError.cshtml` ?? hi?n th? l?i r� r�ng.
- - Layout ?� ???c c?p nh?t ?? hi?n th? tr?ng th�i ??ng nh?p v� menu login/logout.
+ - `Views/Account/Profile.cshtml` hiển thị claims.
+ - `Views/Account/AccessDenied.cshtml` và `Views/Error/ShowError.cshtml` để hiển thị lỗi rõ ràng.
+ - Layout đã được cập nhật để hiển thị trạng thái đăng nhập và menu login/logout.
 
 - `Web.config`:
- - `oidc:ClientId`, `oidc:Authority` (ph?i c� d?u `/` ? cu?i), `oidc:RedirectUri` ???c c?u h�nh v� kh?p v?i c�c values trong Auth0 Allowed Callback / Logout URLs.
+ - `oidc:ClientId`, `oidc:Authority` (phải có dấu `/` ở cuối), `oidc:RedirectUri` được cấu hình và khớp với các values trong Auth0 Allowed Callback / Logout URLs.
 
 ---
 
-###4. C?u h�nh Auth0 (t�m t?t - c?n c� ?? logout ho?t ??ng)
+###4. Cấu hình Auth0 (tóm tắt - cần có để logout hoạt động)
 
 - Allowed Callback URLs:
  - `https://localhost:44348/`
- - `https://localhost:44348/signin-oidc` (n?u s? d?ng)
+ - `https://localhost:44348/signin-oidc` (nếu sử dụng)
 
 - Allowed Logout URLs:
  - `https://localhost:44348/`
  - `https://localhost:44348/Account/PostLogout`
 
-- Authority ph?i d?ng: `https://<your-tenant>.us.auth0.com/` (c� `/` cu?i)
+- Authority phải dạng: `https://<your-tenant>.us.auth0.com/` (có `/` cuối)
 
 ---
 
-###5. Ki?m tra sau khi c?u h�nh th�nh c�ng
+###5. Kiểm tra sau khi cấu hình thành công
 
-1. Ch?y ?ng d?ng, truy c?p `https://localhost:44348/` ? click "Go to Tasks" ? s? redirect t?i Auth0.
-2. ??ng nh?p tr�n Auth0 ? quay l?i ?ng d?ng, confirm cookie `TodoListMVC.Auth` ???c t?o.
-3. Truy c?p `Profile` ?? xem claims.
-4. Click `Logout` ? ?ng d?ng s?:
- - X�a cookie `TodoListMVC.Auth` c?c b?
- - Redirect t?i `https://<your-tenant>.us.auth0.com/v2/logout?client_id={clientId}&returnTo={https://localhost:44348/}`
- - Auth0 x�a session SSO v� redirect v? `https://localhost:44348/` (ho?c `PostLogout` URL)
-5. Sau logout, truy c?p `/Tasks` s? redirect v? login.
-
----
-
-###6. L?u � & Troubleshooting c? th? (logout)
-
-- N?u xu?t hi?n th�ng b�o `Oops!, something went wrong` trong Auth0 khi logout:
- - Ki?m tra **Allowed Logout URLs** trong Auth0 v� ??m b?o `returnTo` URL c� trong danh s�ch.
- - Ki?m tra `client_id` g?i ??n endpoint logout l� Client ID c?a Application.
- - Ki?m tra `authority` value trong `Web.config` c� ?�ng domain v� c� d?u `/` ? cu?i.
-
-- N?u cookie kh�ng b? x�a sau logout:
- - Clear cookie th? c�ng t? browser DevTools ?? debug.
- - Ki?m tra domain v� path cookie. Trong m�i tr??ng development, `CookieSecureOption.SameAsRequest` cho ph�p HTTP nh?ng production n�n d�ng `Always`.
+1. Chạy ứng dụng, truy cập `https://localhost:44348/` → click "Go to Tasks" → sẽ redirect tới Auth0.
+2. Đăng nhập trên Auth0 → quay lại ứng dụng, confirm cookie `TodoListMVC.Auth` được tạo.
+3. Truy cập `Profile` để xem claims.
+4. Click `Logout` → ứng dụng sẽ:
+ - Xóa cookie `TodoListMVC.Auth` cục bộ
+ - Redirect tới `https://<your-tenant>.us.auth0.com/v2/logout?client_id={clientId}&returnTo={https://localhost:44348/}`
+ - Auth0 xóa session SSO và redirect về `https://localhost:44348/` (hoặc `PostLogout` URL)
+5. Sau logout, truy cập `/Tasks` sẽ redirect về login.
 
 ---
 
-###7. T�i li?u tham kh?o nhanh
+###6. Lưu ý & Troubleshooting cụ thể (logout)
+
+- Nếu xuất hiện thông báo `Oops!, something went wrong` trong Auth0 khi logout:
+ - Kiểm tra **Allowed Logout URLs** trong Auth0 và đảm bảo `returnTo` URL có trong danh sách.
+ - Kiểm tra `client_id` gửi đến endpoint logout là Client ID của Application.
+ - Kiểm tra `authority` value trong `Web.config` có đúng domain và có dấu `/` ở cuối.
+
+- Nếu cookie không bị xóa sau logout:
+ - Clear cookie thủ công từ browser DevTools để debug.
+ - Kiểm tra domain và path cookie. Trong môi trường development, `CookieSecureOption.SameAsRequest` cho phép HTTP nhưng production nên dùng `Always`.
+
+---
+
+###7. Tài liệu tham khảo nhanh
 
 - Auth0 logout: https://auth0.com/docs/authenticate/login/logout
 - Auth0 OIDC Quickstart (ASP.NET OWIN): https://auth0.com/docs/quickstart/webapp/aspnet-owin
 
 ---
 
-## ?? So S�nh JWT vs SSO
+## 🔄 So Sánh JWT vs SSO
 
-| Ti�u Ch� | JWT (API Auth) | SSO (Web Auth) |
+| Tiêu Chí | JWT (API Auth) | SSO (Web Auth) |
 |----------|----------------|----------------|
 | **Use Case** | Mobile apps, SPAs, API clients | Web browsers, MVC applications |
-| **Storage** | Client l?u token (localStorage, memory) | Server-side session cookie |
+| **Storage** | Client lưu token (localStorage, memory) | Server-side session cookie |
 | **State** | Stateless (self-contained) | Stateful (session on server) |
-| **Expiration** | Token expires, client ph?i refresh | Cookie expires, auto redirect to SSO |
+| **Expiration** | Token expires, client phải refresh | Cookie expires, auto redirect to SSO |
 | **User Info** | Trong token claims | Trong cookie + claims |
-| **Logout** | Client x�a token | Server invalidates session |
-| **Cross-Domain** | D? d�ng (g?i token qua header) | Kh� h?n (cookie restrictions) |
-| **Security** | Token c� th? b? l? n?u kh�ng c?n th?n | Cookie c� HttpOnly, Secure flags |
+| **Logout** | Client xóa token | Server invalidates session |
+| **Cross-Domain** | Dễ dàng (gửi token qua header) | Khó hơn (cookie restrictions) |
+| **Security** | Token có thể bị lộ nếu không cẩn thận | Cookie có HttpOnly, Secure flags |
 
 ---
 
-## ??? Best Practices B?o M?t
+## 🛡️ Best Practices Bảo Mật
 
 ### 1. JWT Security
 
 ```csharp
-// ? DO:
+// ✅ DO:
 // - Use strong secret (min 32 chars, random)
 public static string Secret = "your-very-long-random-secret-key-here-min-32-chars";
 
@@ -803,7 +803,7 @@ var tokenValidationParameters = new TokenValidationParameters
     ClockSkew = TimeSpan.FromMinutes(2)
 };
 
-// ? DON'T:
+// ❌ DON'T:
 // - Store sensitive data in JWT (it's base64, not encrypted)
 // - Use weak secrets
 // - Set expiration too long
@@ -813,38 +813,38 @@ var tokenValidationParameters = new TokenValidationParameters
 ### 2. Password Hashing
 
 ```csharp
-// ? DO: Use BCrypt with salt
+// ✅ DO: Use BCrypt with salt
 var hash = BCrypt.Net.BCrypt.HashPassword(password);
 var isValid = BCrypt.Net.BCrypt.Verify(password, hash);
 
-// ? DON'T: Use plain MD5, SHA1, or store plain text
-var hash = MD5.Hash(password); // ? INSECURE!
+// ❌ DON'T: Use plain MD5, SHA1, or store plain text
+var hash = MD5.Hash(password); // ❌ INSECURE!
 ```
 
 ### 3. HTTPS
 
 ```csharp
-// ? Production: Always use HTTPS
+// ✅ Production: Always use HTTPS
 RequireHttpsMetadata = true // In OpenID Connect config
 
-// ? Development only:
+// ❌ Development only:
 RequireHttpsMetadata = false
 ```
 
 ### 4. Secrets Management
 
 ```csharp
-// ? DO: Use environment variables or Azure Key Vault
+// ✅ DO: Use environment variables or Azure Key Vault
 var secret = Environment.GetEnvironmentVariable("JWT_SECRET");
 var clientSecret = Configuration["Auth0:ClientSecret"];
 
-// ? DON'T: Hardcode secrets in code
-public static string Secret = "hardcoded-secret"; // ? DON'T!
+// ❌ DON'T: Hardcode secrets in code
+public static string Secret = "hardcoded-secret"; // ❌ DON'T!
 ```
 
 ---
 
-## ?? Testing
+## 🧪 Testing
 
 ### Test JWT Flow
 
@@ -912,7 +912,7 @@ console.error('Error:', error);
 ### Test SSO Flow
 
 1. Navigate to `https://localhost:44348/Tasks`
-2. If not logged in ? Redirect to Auth0
+2. If not logged in → Redirect to Auth0
 3. Login with Auth0 credentials
 4. Redirect back to app
 5. Access protected pages without re-login
@@ -921,24 +921,24 @@ console.error('Error:', error);
 
 ---
 
-## ?? Deployment Checklist
+## 🚀 Deployment Checklist
 
-### Tr??c khi deploy Production:
+### Trước khi deploy Production:
 
-- [ ] ??i JWT Secret th�nh random string m?nh
-- [ ] L?u secrets trong Azure Key Vault / Environment Variables
+- [ ] Đổi JWT Secret thành random string mạnh
+- [ ] Lưu secrets trong Azure Key Vault / Environment Variables
 - [ ] Enable `RequireHttpsMetadata = true`
-- [ ] C?u h�nh CORS cho specific origins (kh�ng d�ng `*`)
+- [ ] Cấu hình CORS cho specific origins (không dùng `*`)
 - [ ] Set cookie `Secure = true`, `HttpOnly = true`
-- [ ] Gi?m `ClockSkew` xu?ng `TimeSpan.Zero`
-- [ ] Th�m rate limiting cho login endpoints
-- [ ] Enable logging v� monitoring
-- [ ] Test v?i production Auth0 tenant
-- [ ] C?p nh?t Allowed Callback URLs trong Auth0
+- [ ] Giảm `ClockSkew` xuống `TimeSpan.Zero`
+- [ ] Thêm rate limiting cho login endpoints
+- [ ] Enable logging và monitoring
+- [ ] Test với production Auth0 tenant
+- [ ] Cập nhật Allowed Callback URLs trong Auth0
 
 ---
 
-## ?? T�i Li?u Tham Kh?o
+## 📖 Tài Liệu Tham Khảo
 
 - [JWT.io](https://jwt.io/) - JWT Introduction & Debugger
 - [Auth0 Docs](https://auth0.com/docs) - SSO Configuration
@@ -948,33 +948,33 @@ console.error('Error:', error);
 
 ---
 
-## ? FAQ
+## ❓ FAQ
 
-### Q: T?i sao c?n c? JWT v� SSO?
+### Q: Tại sao cần cả JWT và SSO?
 
 **A**: 
-- **JWT**: Cho external clients (mobile apps, SPAs) - stateless, d? scale
-- **SSO**: Cho web browsers (MVC views) - t?t h?n cho user experience, b?o m?t h?n v?i cookies
+- **JWT**: Cho external clients (mobile apps, SPAs) - stateless, dễ scale
+- **SSO**: Cho web browsers (MVC views) - tốt hơn cho user experience, bảo mật hơn với cookies
 
-### Q: JWT token b? l? th� sao?
+### Q: JWT token bị lộ thì sao?
 
 **A**:
-- Token h?t h?n sau 1 gi?
+- Token hết hạn sau 1 giờ
 - Implement token refresh mechanism
-- Store token securely (kh�ng l?u trong localStorage n?u lo ng?i XSS)
+- Store token securely (không lưu trong localStorage nếu lo ngại XSS)
 - Use short expiration times
 
-### Q: SSO session h?t h?n th� sao?
+### Q: SSO session hết hạn thì sao?
 
 **A**: 
-- Cookie middleware t? ??ng redirect v? Auth0 login
-- User ??ng nh?p l?i
-- Ho?c Auth0 c� th? auto-renew n?u session c�n valid
+- Cookie middleware tự động redirect về Auth0 login
+- User đăng nhập lại
+- Hoặc Auth0 có thể auto-renew nếu session còn valid
 
-### Q: L�m sao ?? revoke JWT token?
+### Q: Làm sao để revoke JWT token?
 
 **A**:
-- JWT l� stateless, kh�ng th? revoke tr?c ti?p
+- JWT là stateless, không thể revoke trực tiếp
 - Solutions:
   1. Maintain token blacklist (in Redis)
   2. Use short expiration + refresh tokens
@@ -982,17 +982,17 @@ console.error('Error:', error);
 
 ---
 
-## ????? Author
+## 👨‍💻 Author
 
 **Phat Do**
 - GitHub: [@PhatDo04](https://github.com/PhatDo04)
 
 ---
 
-**?? Last Updated**: 2024
+**📅 Last Updated**: 2024
 
-**?? License**: Educational Purpose
+**📄 License**: Educational Purpose
 
 ---
 
-**?? L?U �**: ?�y l� h??ng d?n chi ti?t cho m?c ?�ch h?c t?p. Khi deploy production, c?n th�m nhi?u bi?n ph�p b?o m?t v� t?i ?u h�a!
+**⚠️ LƯU Ý**: Đây là hướng dẫn chi tiết cho mục đích học tập. Khi deploy production, cần thêm nhiều biện pháp bảo mật và tối ưu hóa!
