@@ -3,31 +3,112 @@
 }
 
 <main>
-    <section class="row" aria-labelledby="aspnetTitle">
-        <h1 id="title">ASP.NET</h1>
-        <p class="lead">ASP.NET is a free web framework for building great Web sites and Web applications using HTML, CSS and JavaScript.</p>
-        <p><a href="https://asp.net" class="btn btn-primary btn-md">Learn more &raquo;</a></p>
+    <section class="row mb-4" aria-labelledby="aspnetTitle">
+        <div class="col-md-12 text-center">
+            <div class="jumbotron bg-light p-5 rounded">
+                <h1 id="title" class="display-4">
+                    <i class="fas fa-tasks"></i> TodoList MVC
+                </h1>
+                <p class="lead">
+                    A modern ASP.NET MVC application with Web API, demonstrating:
+                </p>
+                <ul class="list-unstyled">
+                    <li><i class="fas fa-check text-success"></i> <strong>Repository Pattern</strong> & <strong>Unit of Work</strong></li>
+                    <li><i class="fas fa-check text-success"></i> <strong>Dependency Injection</strong> with Unity</li>
+                    <li><i class="fas fa-check text-success"></i> <strong>DTO Pattern</strong> with AutoMapper</li>
+                    <li><i class="fas fa-check text-success"></i> <strong>RESTful API</strong> with CORS support</li>
+                    <li><i class="fas fa-check text-success"></i> <strong>SSO Authentication</strong> with OpenID Connect & Auth0</li>
+                    <li><i class="fas fa-check text-success"></i> <strong>JWT Authentication</strong> for API endpoints</li>
+                </ul>
+                <hr class="my-4">
+
+                @if (Request.IsAuthenticated)
+                {
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle"></i>
+                        <strong>Welcome back, @User.Identity.Name!</strong>
+                        <p class="mb-0">You are currently logged in via SSO.</p>
+                    </div>
+                    <div class="btn-group" role="group">
+                        @Html.ActionLink("Go to Tasks", "Index", "Tasks", null, new { @class = "btn btn-primary btn-lg" })
+                        @Html.ActionLink("View Profile", "Profile", "Account", null, new { @class = "btn btn-info btn-lg" })
+                        @Html.ActionLink("Logout", "Logout", "Account", null, new { @class = "btn btn-danger btn-lg" })
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-warning">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>You are not logged in.</strong>
+                        <p class="mb-0">Please login to access your tasks.</p>
+                    </div>
+                    <div class="btn-group" role="group">
+                        @Html.ActionLink("Login with SSO", "Login", "Account", new { returnUrl = Url.Action("Index", "Tasks") }, new { @class = "btn btn-success btn-lg" })
+                        @Html.ActionLink("Go to Tasks (will redirect to login)", "Index", "Tasks", null, new { @class = "btn btn-primary btn-lg" })
+                    </div>
+                }
+            </div>
+        </div>
     </section>
 
     <div class="row">
-        <section class="col-md-4" aria-labelledby="gettingStartedTitle">
-            <h2 id="gettingStartedTitle">Getting started</h2>
-            <p>
-                ASP.NET MVC gives you a powerful, patterns-based way to build dynamic websites that
-                enables a clean separation of concerns and gives you full control over markup
-                for enjoyable, agile development.
-            </p>
-            <p><a class="btn btn-outline-dark" href="https://go.microsoft.com/fwlink/?LinkId=301865">Learn more &raquo;</a></p>
+        <section class="col-md-4 mb-3" aria-labelledby="ssoTitle">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h2 id="ssoTitle" class="card-title">
+                        <i class="fas fa-shield-alt text-primary"></i> SSO Authentication
+                    </h2>
+                    <p class="card-text">
+                        Secure single sign-on with OpenID Connect and Auth0. One login for all your apps.
+                    </p>
+                </div>
+                <div class="card-footer">
+                    @Html.ActionLink("Learn More", "About", "Home", null, new { @class = "btn btn-outline-primary" })
+                </div>
+            </div>
         </section>
-        <section class="col-md-4" aria-labelledby="librariesTitle">
-            <h2 id="librariesTitle">Get more libraries</h2>
-            <p>NuGet is a free Visual Studio extension that makes it easy to add, remove, and update libraries and tools in Visual Studio projects.</p>
-            <p><a class="btn btn-outline-dark" href="https://go.microsoft.com/fwlink/?LinkId=301866">Learn more &raquo;</a></p>
+
+        <section class="col-md-4 mb-3" aria-labelledby="apiTitle">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h2 id="apiTitle" class="card-title">
+                        <i class="fas fa-code text-success"></i> RESTful API
+                    </h2>
+                    <p class="card-text">
+                        Full-featured Web API with JWT authentication, CORS support, and comprehensive documentation.
+                    </p>
+                </div>
+                <div class="card-footer">
+                    <a href="/api/TasksApi" class="btn btn-outline-success" target="_blank">Try API</a>
+                </div>
+            </div>
         </section>
-        <section class="col-md-4" aria-labelledby="hostingTitle">
-            <h2 id="hostingTitle">Web Hosting</h2>
-            <p>You can easily find a web hosting company that offers the right mix of features and price for your applications.</p>
-            <p><a class="btn btn-outline-dark" href="https://go.microsoft.com/fwlink/?LinkId=301867">Learn more &raquo;</a></p>
+
+        <section class="col-md-4 mb-3" aria-labelledby="patternsTitle">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h2 id="patternsTitle" class="card-title">
+                        <i class="fas fa-layer-group text-warning"></i> Design Patterns
+                    </h2>
+                    <p class="card-text">
+                        Clean architecture with Repository, Unit of Work, and Dependency Injection patterns.
+                    </p>
+                </div>
+                <div class="card-footer">
+                    <a href="https://github.com/PhatDo04/TodoListMVC" target="_blank" class="btn btn-outline-warning">
+                        <i class="fab fa-github"></i> View on GitHub
+                    </a>
+                </div>
+            </div>
         </section>
     </div>
 </main>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+         console.log('TodoList MVC - Home Page');
+  console.log('Authenticated:', @Request.IsAuthenticated.ToString().ToLower());
+     });
+    </script>
+}

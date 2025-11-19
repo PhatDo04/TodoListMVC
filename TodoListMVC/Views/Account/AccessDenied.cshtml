@@ -1,0 +1,41 @@
+@{
+    ViewBag.Title = "Access Denied";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h2 class="mb-0">
+                        <i class="fas fa-ban"></i> Access Denied
+                    </h2>
+                </div>
+                <div class="card-body text-center">
+                    <div class="mb-4">
+                        <i class="fas fa-lock fa-5x text-danger"></i>
+                    </div>
+                    <h4>@ViewBag.Message</h4>
+                    <p class="text-muted">
+                        You don't have permission to access this resource.
+                    </p>
+                    <hr />
+                    <div class="alert alert-info">
+                        <strong>Possible reasons:</strong>
+                        <ul class="text-left">
+                            <li>You are not logged in</li>
+                            <li>Your session has expired</li>
+                            <li>You don't have the required role or permissions</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="card-footer text-center">
+                    <div class="btn-group" role="group">
+                        @Html.ActionLink("Go to Home", "Index", "Home", null, new { @class = "btn btn-primary" })
+                        @Html.ActionLink("Login", "Login", "Account", null, new { @class = "btn btn-success" })
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

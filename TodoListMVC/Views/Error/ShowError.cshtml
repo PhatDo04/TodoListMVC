@@ -1,0 +1,63 @@
+@{
+    ViewBag.Title = "Error";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h2 class="mb-0">
+                        <i class="fas fa-exclamation-triangle"></i> Error
+                    </h2>
+                </div>
+                <div class="card-body text-center">
+                    <div class="mb-4">
+                        <i class="fas fa-times-circle fa-5x text-danger"></i>
+                    </div>
+                    <h4 class="text-danger">@ViewBag.ErrorMessage</h4>
+                    <hr />
+                    <div class="alert alert-warning">
+                        <strong>What happened?</strong>
+                        <p class="mb-0 mt-2">
+                            There was an error while processing your request. This could be due to:
+                        </p>
+                        <ul class="text-left mt-2">
+                            <li>Authentication/Authorization failure</li>
+                            <li>Network connectivity issues</li>
+                            <li>Invalid configuration</li>
+                            <li>Session timeout</li>
+                        </ul>
+                    </div>
+                    @if (Request.IsAuthenticated)
+                    {
+                        <div class="alert alert-info">
+                            <strong>You are currently logged in as:</strong> @User.Identity.Name
+                        </div>
+                    }
+                </div>
+                <div class="card-footer text-center">
+                    <div class="btn-group" role="group">
+                        @Html.ActionLink("Go to Home", "Index", "Home", null, new { @class = "btn btn-primary" })
+                        @if (Request.IsAuthenticated)
+                        {
+                            @Html.ActionLink("Go to Tasks", "Index", "Tasks", null, new { @class = "btn btn-success" })
+                            @Html.ActionLink("Logout", "Logout", "Account", null, new { @class = "btn btn-warning" })
+                        }
+                        else
+                        {
+                            @Html.ActionLink("Login", "Login", "Account", null, new { @class = "btn btn-success" })
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Log error to console for debugging
+        console.error('Error page displayed:', '@ViewBag.ErrorMessage');
+    </script>
+}

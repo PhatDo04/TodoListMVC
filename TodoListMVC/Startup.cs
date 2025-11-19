@@ -47,7 +47,12 @@ namespace TodoListMVC
             app.UseCookieAuthentication(new CookieAuthenticationOptions
             {
                 AuthenticationType = CookieAuthenticationDefaults.AuthenticationType,
-                LoginPath = new PathString("/Account/Login") // Tùy chọn: Trang sẽ đến nếu chưa đăng nhập
+                LoginPath = new PathString("/Account/Login"), // Trang login khi chưa xác thực
+                ExpireTimeSpan = TimeSpan.FromHours(1), // Cookie hết hạn sau 1 giờ
+                SlidingExpiration = true, // Renew cookie khi user còn hoạt động
+                CookieName = "TodoListMVC.Auth", // Tên cookie
+                CookieHttpOnly = true, // Không cho JavaScript truy cập (bảo mật)
+                CookieSecure = CookieSecureOption.SameAsRequest // HTTPS trong production
             });
 
             // 3. Kích hoạt xác thực OpenID Connect
@@ -59,6 +64,7 @@ namespace TodoListMVC
                 ClientId = clientId,     // ID của ứng dụng (lấy từ nhà cung cấp)
                 Authority = authority,   // Địa chỉ máy chủ SSO (lấy từ nhà cung cấp)
                 RedirectUri = redirectUri, // Trang nhà cung cấp sẽ trả về sau khi đăng nhập
+                PostLogoutRedirectUri = redirectUri, // Trang trả về sau khi logout
 
                 // -- Cấu hình luồng (flow) --
                 // Yêu cầu cả 'code' (cho phép lấy token ở back-end) và 'id_token' (thông tin người dùng)
@@ -68,19 +74,30 @@ namespace TodoListMVC
                 // -- Xử lý sau khi đăng nhập --
                 Notifications = new OpenIdConnectAuthenticationNotifications
                 {
-                    // Dùng để xử lý việc chuyển hướng sau khi đăng nhập
+                    // Dùng để xử lý việc chuyển hướng trước khi đến identity provider
                     RedirectToIdentityProvider = notification =>
                     {
-                        // Nếu yêu cầu đăng nhập đến từ một trang cụ thể,
-                        // lưu lại trang đó để quay về sau khi đăng nhập thành công.
-                        if (notification.ProtocolMessage.RedirectUri == null)
+                        // Nếu không phải là signin request (có thể là signout), không làm gì
+                        if (notification.ProtocolMessage.RequestType == OpenIdConnectRequestType.Logout)
                         {
-                            notification.ProtocolMessage.RedirectUri = redirectUri;
+                            // Logout - construct proper Auth0 logout URL
+                            var logoutUri = $"{authority}v2/logout?client_id={clientId}";
+                            
+                            // Add return URL
+                            var postLogoutUri = notification.Request.Scheme + "://" + notification.Request.Host + notification.Request.PathBase;
+                            logoutUri += $"&returnTo={System.Uri.EscapeDataString(postLogoutUri)}";
+                            
+                            notification.Response.Redirect(logoutUri);
+                            notification.HandleResponse();
                         }
-
-                        // Giữ lại URL mà người dùng muốn truy cập ban đầu
-                        string appBaseUrl = notification.Request.Scheme + "://" + notification.Request.Host + notification.Request.PathBase;
-                        notification.ProtocolMessage.RedirectUri = appBaseUrl;
+                        else
+                        {
+                            // Signin request - đảm bảo redirect URI được set đúng
+                            if (string.IsNullOrEmpty(notification.ProtocolMessage.RedirectUri))
+                            {
+                                notification.ProtocolMessage.RedirectUri = redirectUri;
+                            }
+                        }
 
                         return Task.FromResult(0);
                     },
@@ -89,7 +106,7 @@ namespace TodoListMVC
                     AuthenticationFailed = context =>
                     {
                         context.HandleResponse();
-                        context.Response.Redirect("/Error/ShowError?message=" + context.Exception.Message);
+                        context.Response.Redirect("/Error/ShowError?message=" + System.Uri.EscapeDataString(context.Exception.Message));
                         return Task.FromResult(0);
                     }
                 }

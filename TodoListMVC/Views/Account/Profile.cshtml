@@ -1,0 +1,91 @@
+@model IEnumerable<System.Security.Claims.Claim>
+
+@{
+    ViewBag.Title = "User Profile - SSO Information";
+}
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h2 class="mb-0">
+                        <i class="fas fa-user-circle"></i> User Profile
+                    </h2>
+                    <p class="mb-0">Information from SSO (Single Sign-On)</p>
+                </div>
+                <div class="card-body">
+                    @if (Model != null && Model.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover table-striped">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 40%">
+                                            <i class="fas fa-tag"></i> Claim Type
+                                        </th>
+                                        <th style="width: 60%">
+                                            <i class="fas fa-info-circle"></i> Value
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var claim in Model)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <code>@claim.Type</code>
+                                            </td>
+                                            <td>
+                                                <strong>@claim.Value</strong>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="alert alert-info mt-3">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>Claims Explained:</strong>
+                            <ul class="mb-0 mt-2">
+                                <li><strong>nameidentifier</strong> - Unique user ID from Auth0</li>
+                                <li><strong>name</strong> - User's display name</li>
+                                <li><strong>email</strong> - User's email address</li>
+                                <li><strong>picture</strong> - Profile picture URL</li>
+                                <li><strong>iss (Issuer)</strong> - Auth0 domain</li>
+                                <li><strong>aud (Audience)</strong> - Client ID</li>
+                                <li><strong>exp (Expiration)</strong> - Token expiration time</li>
+                            </ul>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            No claims found. This shouldn't happen if you're authenticated.
+                        </div>
+                    }
+                </div>
+                <div class="card-footer">
+                    <div class="btn-group" role="group">
+                        @Html.ActionLink("Back to Tasks", "Index", "Tasks", null, new { @class = "btn btn-primary" })
+                        @Html.ActionLink("Logout", "Logout", "Account", null, new { @class = "btn btn-danger" })
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Optional: Add some interactivity
+        $(document).ready(function () {
+            console.log('User Profile page loaded');
+
+            // Highlight important claims
+            $('code:contains("email"), code:contains("name"), code:contains("nameidentifier")').closest('tr').addClass('table-warning');
+        });
+    </script>
+}

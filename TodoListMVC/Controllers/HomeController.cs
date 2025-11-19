@@ -2,14 +2,15 @@
 
 namespace TodoListMVC.Controllers
 {
-    [Authorize]
     public class HomeController : Controller
     {
+        [AllowAnonymous] // Trang Home không cần đăng nhập
         public ActionResult Index()
         {
             return View();
         }
 
+        [AllowAnonymous]
         public ActionResult About()
         {
             ViewBag.Message = "Your application description page.";
@@ -17,6 +18,7 @@ namespace TodoListMVC.Controllers
             return View();
         }
 
+        [AllowAnonymous]
         public ActionResult Contact()
         {
             ViewBag.Message = "Your contact page.";
